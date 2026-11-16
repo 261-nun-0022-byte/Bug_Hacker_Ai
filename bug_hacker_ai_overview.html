@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Hacker AI - Agent Overview</title>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Configuration and Styling -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#030712',
+                            darker: '#010308',
+                            panel: '#0a1122',
+                            cyan: '#00f3ff',
+                            blue: '#0066ff',
+                            orange: '#ff6a00',
+                            green: '#00ff66',
+                            red: '#ff003c',
+                            muted: '#4a5b78'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['"Fira Code"', 'monospace'],
+                        sans: ['"Inter"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;600;700&display=swap');
+
+        body {
+            background-color: #010308;
+            color: #e2e8f0;
+            overflow: hidden; /* Prevent scrolling for desktop app feel */
+            font-family: 'Inter', sans-serif;
+            background-image: 
+                linear-gradient(to right, rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Neon Text Utilities */
+        .neon-text-cyan {
+            color: #00f3ff;
+            text-shadow: 0 0 5px rgba(0, 243, 255, 0.8), 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+        .neon-text-orange {
+            color: #ff6a00;
+            text-shadow: 0 0 5px rgba(255, 106, 0, 0.8);
+        }
+
+        /* Panel Styling */
+        .cyber-panel {
+            background: rgba(10, 17, 34, 0.85);
+            border: 1px solid rgba(0, 243, 255, 0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05);
+            border-radius: 8px;
+        }
+        
+        .cyber-panel-header {
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.1) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(0, 243, 255, 0.3);
+        }
+
+        /* Animations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 10px #00f3ff, inset 0 0 10px #00f3ff; }
+            50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 30px #00f3ff, inset 0 0 20px #00f3ff; }
+            100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 10px #00f3ff, inset 0 0 10px #00f3ff; }
+        }
+
+        @keyframes rotate-clockwise {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotate-counter {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        @keyframes data-flow {
+            to { stroke-dashoffset: -40; }
+        }
+
+        .anim-pulse-ring { animation: pulse-ring 3s infinite ease-in-out; }
+        .anim-rotate-slow { animation: rotate-clockwise 20s linear infinite; }
+        .anim-rotate-slow-reverse { animation: rotate-counter 25s linear infinite; }
+        .anim-rotate-fast { animation: rotate-clockwise 8s linear infinite; }
+
+        .data-line {
+            stroke: rgba(0, 243, 255, 0.3);
+            stroke-width: 2;
+            stroke-dasharray: 10 10;
+            animation: data-flow 1s linear infinite;
+        }
+        .data-line.orange { stroke: rgba(255, 106, 0, 0.4); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 243, 255, 0.6); }
+
+        /* Draggable Node */
+        .draggable-node { cursor: grab; user-select: none; }
+        .draggable-node:active { cursor: grabbing; }
+
+        /* Hexagon clip path for stats */
+        .hex-bg {
+            clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid #00f3ff;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+
+        // --- Mock Data & Config ---
+        const AGENTS_DATA = [
+            { id: 1, title: 'Reconnaissance Agent', shortName: 'RECON', role: 'Scanner', status: 'ACTIVE', progress: 84, color: 'cyan', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
+            { id: 2, title: 'Vulnerability Scanner', shortName: 'VULN', role: 'Scanner', status: 'Active', targets: 4, color: 'green', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z' },
+            { id: 3, title: 'Web Penetration', shortName: 'WEB', role: 'Targeting', status: 'Deploy', color: 'orange', icon: 'M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9' },
+            { id: 4, title: 'Network Threat', shortName: 'NETWORK', role: 'Bypass', status: '71%', color: 'cyan', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+            { id: 5, title: 'Exploit Assessor', shortName: 'EXPLOIT', role: 'Cracker', status: 'Auth: 121', color: 'cyan', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z' },
+            { id: 6, title: 'Static Analysis', shortName: 'STATIC', role: 'Phish', status: 'Camp: 3', color: 'cyan', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+            { id: 7, title: 'Binary Analysis', shortName: 'BINARY', role: 'Rootkit', status: 'Deployed', color: 'green', icon: 'M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4' },
+            { id: 8, title: 'Cloud & IAM Security', shortName: 'CLOUD', role: 'Reporting', status: 'v1.8', color: 'orange', icon: 'M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z' },
+            { id: 9, title: 'Executive Reporting', shortName: 'REPORT', role: 'Stealth', status: '98%', color: 'orange', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' },
+            { id: 10, title: 'Ethical Guardrail', shortName: 'GUARD', role: 'Network', status: 'Map: 59%', color: 'cyan', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' }
+        ];
+
+        const TERMINAL_LOGS = [
+            "[SYSTEM] Initializing Bug Hacker AI Core...",
+            "[CORE] Ethical Mode ON. Verifying constraints...",
+            " > Validating Targets...",
+            "[AGENT_02] [RECON] Scanning domain ranges.",
+            " > 192.168.1.0/24 identified.",
+            "[AGENT_04] [NETWORK] Assessing topology...",
+            "[AGENT_08] [CLOUD] Checking IAM policies... OK",
+            "[SYSTEM] Agents synchronized.",
+            "$ > Awaiting command..."
+        ];
+
+        // --- Main Component ---
+        const App = () => {
+            const [agents, setAgents] = useState([]);
+            const [time, setTime] = useState(new Date());
+            const [logs, setLogs] = useState(TERMINAL_LOGS);
+            
+            // Drag and Drop State
+            const [dragInfo, setDragInfo] = useState(null); // { id, startX, startY, origNodeX, origNodeY }
+            const containerRef = useRef(null);
+
+            // Initialize agent positions in a circle
+            useEffect(() => {
+                const radius = 300; // Layout radius
+                const centerX = 0;
+                const centerY = 0;
+                
+                const initializedAgents = AGENTS_DATA.map((agent, index) => {
+                    const angle = (index / AGENTS_DATA.length) * (2 * Math.PI) - Math.PI/2; // Start top
+                    return {
+                        ...agent,
+                        x: centerX + radius * Math.cos(angle),
+                        y: centerY + radius * Math.sin(angle),
+                        // Add some jitter for a more organic tech look
+                        x: centerX + (radius + (Math.random()*40 - 20)) * Math.cos(angle),
+                        y: centerY + (radius + (Math.random()*40 - 20)) * Math.sin(angle),
+                    };
+                });
+                setAgents(initializedAgents);
+
+                // Clock timer
+                const timer = setInterval(() => setTime(new Date()), 1000);
+                
+                // Terminal simulation
+                const logTimer = setInterval(() => {
+                    setLogs(prev => {
+                        const newLogs = [...prev];
+                        const randomAgent = AGENTS_DATA[Math.floor(Math.random() * AGENTS_DATA.length)];
+                        const actions = ["Scanning...", "Analyzing...", "Deploying countermeasure...", "Data mapped."];
+                        newLogs.push(`[${randomAgent.shortName}] ${actions[Math.floor(Math.random()*actions.length)]}`);
+                        if (newLogs.length > 20) newLogs.shift();
+                        return newLogs;
+                    });
+                }, 4000);
+
+                return () => { clearInterval(timer); clearInterval(logTimer); };
+            }, []);
+
+            // --- Drag Logic ---
+            const handleMouseDown = (e, id) => {
+                const agent = agents.find(a => a.id === id);
+                setDragInfo({
+                    id,
+                    startX: e.clientX,
+                    startY: e.clientY,
+                    origNodeX: agent.x,
+                    origNodeY: agent.y
+                });
+            };
+
+            const handleMouseMove = useCallback((e) => {
+                if (!dragInfo) return;
+
+                const dx = e.clientX - dragInfo.startX;
+                const dy = e.clientY - dragInfo.startY;
+
+                setAgents(prev => prev.map(agent => 
+                    agent.id === dragInfo.id 
+                        ? { ...agent, x: dragInfo.origNodeX + dx, y: dragInfo.origNodeY + dy }
+                        : agent
+                ));
+            }, [dragInfo]);
+
+            const handleMouseUp = useCallback(() => {
+                setDragInfo(null);
+            }, []);
+
+            useEffect(() => {
+                if (dragInfo) {
+                    window.addEventListener('mousemove', handleMouseMove);
+                    window.addEventListener('mouseup', handleMouseUp);
+                } else {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                }
+                return () => {
+                    window.removeEventListener('mousemove', handleMouseMove);
+                    window.removeEventListener('mouseup', handleMouseUp);
+                };
+            }, [dragInfo, handleMouseMove, handleMouseUp]);
+
+            // --- Render Helpers ---
+            const getColorClass = (colorStr, type = 'text') => {
+                const map = {
+                    'cyan': { text: 'text-cyber-cyan', border: 'border-cyber-cyan', bg: 'bg-cyber-cyan/20' },
+                    'orange': { text: 'text-cyber-orange', border: 'border-cyber-orange', bg: 'bg-cyber-orange/20' },
+                    'green': { text: 'text-cyber-green', border: 'border-cyber-green', bg: 'bg-cyber-green/20' }
+                };
+                return map[colorStr]?.[type] || map['cyan'][type];
+            };
+
+            return (
+                <div className="h-screen w-screen flex flex-col font-sans select-none" ref={containerRef}>
+                    {/* Header Top Bar */}
+                    <header className="h-16 cyber-panel border-x-0 border-t-0 flex items-center justify-between px-6 z-20 relative">
+                        <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-lg border border-cyber-cyan flex items-center justify-center bg-cyber-cyan/10">
+                                <svg className="w-6 h-6 text-cyber-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                            </div>
+                            <h1 className="text-2xl font-bold tracking-wider neon-text-cyan">BUG HACKER AI AGENT</h1>
+                        </div>
+
+                        <nav className="flex space-x-8 text-sm font-medium tracking-widest text-cyber-muted">
+                            <a href="#" className="text-cyber-cyan border-b-2 border-cyber-cyan pb-1">DASHBOARD</a>
+                            <a href="#" className="hover:text-cyber-cyan transition-colors">OPERATIONS</a>
+                            <a href="#" className="hover:text-cyber-cyan transition-colors">ANALYTICS</a>
+                            <a href="#" className="hover:text-cyber-cyan transition-colors">SETTINGS</a>
+                        </nav>
+
+                        <div className="flex items-center space-x-6 text-right">
+                            <div className="flex items-center space-x-3 text-cyber-muted">
+                                <svg className="w-5 h-5 cursor-pointer hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                <svg className="w-5 h-5 cursor-pointer hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            </div>
+                            <div className="font-mono text-sm">
+                                <div className="text-white">{time.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute:'2-digit' })}</div>
+                                <div className="text-cyber-muted text-xs">{time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <div className="flex-1 flex overflow-hidden relative">
+                        
+                        {/* LEFT SIDEBAR */}
+                        <div className="w-72 p-4 flex flex-col space-y-4 z-20 overflow-y-auto">
+                            
+                            {/* System Overview Panel */}
+                            <div className="cyber-panel p-4 flex flex-col space-y-3">
+                                <h2 className="text-sm font-bold tracking-widest border-b border-cyber-cyan/30 pb-2 mb-2">SYSTEM OVERVIEW</h2>
+                                
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-mono">
+                                        <span className="text-cyber-muted">CPU:</span>
+                                        <span className="text-cyber-cyan">74%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-black rounded-full overflow-hidden border border-cyber-cyan/20">
+                                        <div className="h-full bg-cyber-cyan w-[74%] shadow-[0_0_8px_#00f3ff]"></div>
+                                    </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-xs font-mono">
+                                        <span className="text-cyber-muted">Memory:</span>
+                                        <span className="text-cyber-cyan">68%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-black rounded-full overflow-hidden border border-cyber-cyan/20">
+                                        <div className="h-full bg-cyber-cyan w-[68%] shadow-[0_0_8px_#00f3ff]"></div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/5">
+                                    <span className="text-xs text-cyber-muted tracking-wider">Threat Level:</span>
+                                    <span className="text-xs font-bold text-cyber-green tracking-wider">LOW</span>
+                                </div>
+                            </div>
+
+                            {/* Agent Team Panel */}
+                            <div className="cyber-panel p-4 flex-1 flex flex-col">
+                                <div className="flex justify-between items-center border-b border-cyber-cyan/30 pb-2 mb-3">
+                                    <h2 className="text-sm font-bold tracking-widest">AGENT TEAM (10)</h2>
+                                    <svg className="w-4 h-4 text-cyber-muted cursor-pointer hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                                
+                                <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                                    {AGENTS_DATA.map(agent => (
+                                        <div key={`sidebar-${agent.id}`} className="flex items-center space-x-3 p-2 rounded bg-black/40 border border-transparent hover:border-cyber-cyan/30 cursor-pointer transition-colors group">
+                                            <div className={`w-8 h-8 rounded-full border ${getColorClass(agent.color, 'border')} flex items-center justify-center bg-black`}>
+                                                <svg className={`w-4 h-4 ${getColorClass(agent.color, 'text')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={agent.icon}></path>
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs font-bold truncate group-hover:text-white transition-colors">{agent.shortName}</div>
+                                                <div className="text-[10px] text-cyber-muted font-mono truncate">[{agent.role.toUpperCase()}]</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Mini Radar (Decorative) */}
+                            <div className="cyber-panel p-4 flex justify-center items-center h-32 relative overflow-hidden">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,243,255,0.1)_0,transparent_70%)]"></div>
+                                <div className="w-full h-full border border-cyber-cyan/20 rounded-lg relative flex items-center justify-center">
+                                    <div className="w-16 h-16 rounded-full border border-cyber-cyan/40 relative">
+                                        <div className="absolute inset-0 rounded-full border border-cyber-cyan/20 m-2"></div>
+                                        {/* Scanner line */}
+                                        <div className="absolute top-1/2 left-1/2 w-1/2 h-[1px] bg-cyber-cyan origin-left anim-rotate-slow"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* CENTER CANVAS AREA */}
+                        <div className="flex-1 relative overflow-hidden flex items-center justify-center z-10" id="canvas-area">
+                            
+                            {/* SVG Layer for Connections */}
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none">
+                                <defs>
+                                    <radialGradient id="glow-cyan" cx="50%" cy="50%" r="50%">
+                                        <stop offset="0%" stopColor="rgba(0, 243, 255, 0.8)" />
+                                        <stop offset="100%" stopColor="transparent" />
+                                    </radialGradient>
+                                </defs>
+                                {/* Center origin is effectively 50%, 50% via CSS relative positioning of nodes, 
+                                    but SVG needs explicit coords. Since we calculate node positions relative to center,
+                                    we translate the SVG group to the center. */}
+                                <g transform="translate(50% 50%)" style={{transformOrigin: 'center', transform: 'translate(50%, 50%)'}}>
+                                    {agents.map(agent => (
+                                        <g key={`link-${agent.id}`}>
+                                            <line 
+                                                x1="0" y1="0" 
+                                                x2={agent.x} y2={agent.y} 
+                                                className={`data-line ${agent.color === 'orange' ? 'orange' : ''}`}
+                                            />
+                                            {/* Animated pulse traveling along line */}
+                                            <circle r="3" fill={agent.color === 'orange' ? '#ff6a00' : '#00f3ff'} filter="url(#glow-cyan)">
+                                                <animateMotion 
+                                                    path={`M 0,0 L ${agent.x},${agent.y}`}
+                                                    dur={`${1.5 + Math.random()}s`} 
+                                                    repeatCount="indefinite" 
+                                                />
+                                            </circle>
+                                        </g>
+                                    ))}
+                                </g>
+                            </svg>
+
+                            {/* CENTER FATHER AGENT */}
+                            <div className="absolute z-30 flex items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+                                {/* Decorative rings */}
+                                <div className="absolute w-64 h-64 rounded-full border border-cyber-cyan/20 anim-rotate-slow-reverse">
+                                    <div className="absolute w-2 h-2 bg-cyber-cyan rounded-full top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 shadow-[0_0_10px_#00f3ff]"></div>
+                                </div>
+                                <div className="absolute w-56 h-56 rounded-full border-2 border-dashed border-cyber-cyan/40 anim-rotate-slow"></div>
+                                <div className="absolute w-48 h-48 rounded-full border border-cyber-orange/30"></div>
+                                
+                                {/* Core Element */}
+                                <div className="w-40 h-40 rounded-full cyber-panel flex flex-col items-center justify-center anim-pulse-ring cursor-pointer hover:scale-105 transition-transform z-10 bg-[#030712]/90 backdrop-blur-md border-2 border-cyber-cyan">
+                                    <svg className="w-12 h-12 text-cyber-cyan mb-2 drop-shadow-[0_0_8px_rgba(0,243,255,1)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                    </svg>
+                                    <div className="text-center font-bold">
+                                        <div className="text-sm tracking-wider text-white">BUG HACKER</div>
+                                        <div className="text-xs tracking-widest neon-text-cyan">AI CORE</div>
+                                    </div>
+                                    <div className="mt-2 text-[9px] font-mono text-cyber-green bg-cyber-green/10 px-2 py-0.5 rounded border border-cyber-green/30">
+                                        ACTIVE - ETHICAL MODE
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SUB AGENTS */}
+                            {agents.map(agent => (
+                                <div 
+                                    key={agent.id}
+                                    className="absolute draggable-node group z-20"
+                                    style={{ 
+                                        left: `calc(50% + ${agent.x}px)`, 
+                                        top: `calc(50% + ${agent.y}px)`,
+                                        transform: 'translate(-50%, -50%)'
+                                    }}
+                                    onMouseDown={(e) => handleMouseDown(e, agent.id)}
+                                >
+                                    <div className="flex items-center space-x-3 bg-black/60 p-1.5 rounded-full pr-4 border border-transparent group-hover:border-cyber-cyan/50 backdrop-blur-sm transition-colors">
+                                        {/* Icon Ring */}
+                                        <div className={`relative w-12 h-12 rounded-full border-2 ${getColorClass(agent.color, 'border')} flex items-center justify-center bg-[#0a1122] shadow-[0_0_15px_rgba(0,0,0,0.5)]`}>
+                                            {/* Spinners on hover */}
+                                            <div className="absolute inset-[-4px] rounded-full border border-dashed border-white/20 opacity-0 group-hover:opacity-100 anim-rotate-fast"></div>
+                                            
+                                            <svg className={`w-5 h-5 ${getColorClass(agent.color, 'text')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={agent.icon}></path>
+                                            </svg>
+                                        </div>
+                                        
+                                        {/* Text Info */}
+                                        <div className="flex flex-col select-none">
+                                            <div className="text-[10px] font-bold text-cyber-muted tracking-wider">AGENT_{agent.id < 10 ? `0${agent.id}` : agent.id}</div>
+                                            <div className={`text-xs font-bold ${getColorClass(agent.color, 'text')} tracking-wide`}>[{agent.shortName}]</div>
+                                            <div className="text-[9px] font-mono text-gray-400 mt-0.5 flex items-center">
+                                                Status: <span className="text-white ml-1">{agent.status}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+
+                        </div>
+
+                        {/* RIGHT SIDEBAR */}
+                        <div className="w-80 p-4 flex flex-col space-y-4 z-20">
+                            
+                            {/* Active Operations */}
+                            <div className="cyber-panel p-4 flex flex-col h-1/3">
+                                <h2 className="text-sm font-bold tracking-widest border-b border-cyber-cyan/30 pb-2 mb-3">ACTIVE OPERATIONS</h2>
+                                
+                                <div className="space-y-3 flex-1">
+                                    <div className="text-sm bg-black/40 p-3 rounded border border-white/5">
+                                        <div className="flex justify-between font-mono text-xs mb-1">
+                                            <span className="text-cyber-muted">Target:</span>
+                                            <span className="text-white">NovaCorp_Srv1</span>
+                                        </div>
+                                        <div className="flex justify-between font-mono text-xs mb-2">
+                                            <span className="text-cyber-muted">Method:</span>
+                                            <span className="text-cyber-orange">WAF Bypass</span>
+                                        </div>
+                                        
+                                        <div className="text-[10px] text-cyber-muted mb-1">Progress Bar</div>
+                                        <div className="h-1 bg-black rounded-full overflow-hidden">
+                                            <div className="h-full bg-cyber-orange w-[82%] shadow-[0_0_5px_#ff6a00]"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Terminal / Logs */}
+                            <div className="cyber-panel p-0 flex flex-col flex-1 overflow-hidden border-cyber-cyan/40">
+                                <div className="cyber-panel-header px-4 py-2 flex justify-between items-center">
+                                    <h2 className="text-sm font-bold tracking-widest text-cyber-cyan">TERMINAL v0.9</h2>
+                                    <div className="flex space-x-1">
+                                        <div className="w-2 h-2 rounded-full bg-cyber-muted"></div>
+                                        <div className="w-2 h-2 rounded-full bg-cyber-muted"></div>
+                                        <div className="w-2 h-2 rounded-full bg-cyber-cyan shadow-[0_0_5px_#00f3ff]"></div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 p-4 font-mono text-[11px] overflow-y-auto bg-black/60 text-gray-300 flex flex-col justify-end relative">
+                                    {/* Scanline overlay */}
+                                    <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] z-10 opacity-20"></div>
+                                    
+                                    <div className="space-y-1 z-20">
+                                        {logs.map((log, i) => (
+                                            <div key={i} className={`${
+                                                log.includes('ERROR') ? 'text-cyber-red' : 
+                                                log.includes('SUCCESS') || log.includes('OK') ? 'text-cyber-green' : 
+                                                log.includes('[SYSTEM]') ? 'text-cyber-cyan font-bold' : ''
+                                            }`}>
+                                                {log.startsWith(' >') ? <span className="text-cyber-muted ml-2">{log}</span> : log}
+                                            </div>
+                                        ))}
+                                        {/* Blinking cursor */}
+                                        <div className="animate-pulse text-cyber-cyan">_</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
